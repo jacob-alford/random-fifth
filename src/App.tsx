@@ -3,7 +3,8 @@ import { pipe } from "fp-ts/lib/function";
 import { interval } from "rxjs";
 import styled from "styled-components";
 
-const audio = new AudioContext();
+// @ts-ignore
+const audio = new (window.AudioContext || window.webkitAudioContext)();
 
 const FREQUENCIES = [
   261.63,
@@ -19,12 +20,16 @@ const FREQUENCIES = [
   466.16,
   493.88
 ];
+const MAX_JUMP = 3;
+const JUMPS = Array.from({ length: 2 * MAX_JUMP + 1 }).map(
+  (_, i) => i - MAX_JUMP
+);
 const INITIAL_FREQUENCY = FREQUENCIES[(Math.random() * FREQUENCIES.length) | 0];
 const CONSECUTIVE_FREQUENCY_RATIO = Math.pow(2, 7 / 12);
 const MIN_FREQUENCY =
-  INITIAL_FREQUENCY * Math.pow(CONSECUTIVE_FREQUENCY_RATIO, -3);
+  INITIAL_FREQUENCY * Math.pow(CONSECUTIVE_FREQUENCY_RATIO, -1 * MAX_JUMP);
 const MAX_FREQUENCY =
-  INITIAL_FREQUENCY * Math.pow(CONSECUTIVE_FREQUENCY_RATIO, 3);
+  INITIAL_FREQUENCY * Math.pow(CONSECUTIVE_FREQUENCY_RATIO, MAX_JUMP);
 
 const getOsc = () => {
   const oscillator = audio.createOscillator();
@@ -43,11 +48,14 @@ const playOsc = (duration: number) => (osc: OscillatorNode) => {
 const getNextFreq = (oldFreq: number) =>
   pipe(
     oldFreq *
-      Math.pow(CONSECUTIVE_FREQUENCY_RATIO, [-1, 1][(Math.random() * 2) | 0]),
+      Math.pow(
+        CONSECUTIVE_FREQUENCY_RATIO,
+        JUMPS[(Math.random() * MAX_JUMP) | 0]
+      ),
     newFreq =>
-      newFreq > MAX_FREQUENCY
+      newFreq >= MAX_FREQUENCY
         ? oldFreq / CONSECUTIVE_FREQUENCY_RATIO
-        : newFreq < MIN_FREQUENCY
+        : newFreq <= MIN_FREQUENCY
         ? oldFreq * CONSECUTIVE_FREQUENCY_RATIO
         : newFreq
   );
@@ -95,7 +103,7 @@ const Header = styled.div`
   color: rgba(0, 0, 0, 0.69);
 `;
 
-const App = () => {
+export const App = () => {
   const [s, ss] = useState(false);
   const startSound = useCallback(() => {
     playLoop(INITIAL_FREQUENCY);
